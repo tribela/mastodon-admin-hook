@@ -59,6 +59,8 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
 
         comment = obj.comment
 
+        attached_statuses_count = len(obj.status_ids) if obj.status_ids else 0
+
         url = f"{INSTANCE_URL}/admin/reports/{obj.id}"
         content = f"New report from qdon.space!\n{url}"
 
@@ -84,6 +86,11 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
                     {
                         "name": "Category",
                         "value": category,
+                        "inline": True,
+                    },
+                    {
+                        "name": "Attached statuses",
+                        "value": attached_statuses_count,
                         "inline": True,
                     },
                     {
