@@ -13,15 +13,15 @@ INSTANCE_URL = "https://qdon.space"
 
 class ReportObject(BaseModel):
     id: int
-    account_id: int
-    target_account_id: int
-    status_ids: Optional[List[int]]
+    account: Dict
+    target_account: Dict
+    statuses: List[Dict]
     comment: Optional[str]
     created_at: str
     updated_at: str
-    forwarded: Optional[bool]
+    forwarded: bool
     category: str
-    rule_ids: Optional[List[int]]
+    rules: List[Dict[str, str]]
 
 
 class Report(BaseModel):
@@ -41,25 +41,19 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
 
     async with httpx.AsyncClient() as client:
         obj = hook_object.object
-        account_id = obj.account_id
-        target_account_id = obj.target_account_id
         category = obj.category
-        if obj.rule_ids:
-            instance_rules = (await client.get(f'{INSTANCE_URL}/api/v1/instance')).json()['rules']
-            rule_ids = [str(rule_id) for rule_id in obj.rule_ids]
-            selected_rules = [rule['text'] for rule in instance_rules if rule['id'] in rule_ids]
-        else:
-            selected_rules = None
 
-        _account = client.get(f'{INSTANCE_URL}/api/v1/accounts/{account_id}')
-        _target_account = client.get(f'{INSTANCE_URL}/api/v1/accounts/{target_account_id}')
+        account_username = obj.account['username']
+        target_account_username = obj.target_account['username']
 
-        account_username = (await _account).json()['username']
-        target_account_username = (await _target_account).json()['username']
+        violated_rules = '\n'.join(
+            f'- {rule["text"]}'
+            for rule in obj.rules
+        )
 
         comment = obj.comment
 
-        attached_statuses_count = len(obj.status_ids) if obj.status_ids else 0
+        attached_statuses_count = len(obj.statuses)
 
         url = f"{INSTANCE_URL}/admin/reports/{obj.id}"
         content = f"New report from qdon.space!\n{url}"
@@ -100,7 +94,7 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
                     },
                     {
                         "name": "Rules",
-                        "value": '\n'.join(selected_rules) if selected_rules else "None",
+                        "value": violated_rules,
                         "inline": False,
                     },
                 ]
