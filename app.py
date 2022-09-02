@@ -5,23 +5,35 @@ import httpx
 
 from pydantic import BaseModel
 from typing import Dict, List, Optional
+from pprint import pprint
 
 app = fastapi.FastAPI()
 
 INSTANCE_URL = "https://qdon.space"
 
 
+class Account(BaseModel):
+    username: str
+    domain: Optional[str] = None
+    ...
+
+
+class Rule(BaseModel):
+    id: str
+    text: str
+
+
 class ReportObject(BaseModel):
     id: int
-    account: Dict
-    target_account: Dict
+    account: Account
+    target_account: Account
     statuses: List[Dict]
     comment: Optional[str]
     created_at: str
     updated_at: str
     forwarded: bool
     category: str
-    rules: List[Dict[str, str]]
+    rules: List[Rule]
 
 
 class Report(BaseModel):
@@ -31,6 +43,12 @@ class Report(BaseModel):
 
 
 avatar_url = httpx.get(f'{INSTANCE_URL}/api/v1/accounts/1').json()['avatar']
+
+
+def pretty_username(account: Account) -> str:
+    if account.domain is None:
+        return account.username
+    return f'{account.username}@{account.domain}'
 
 
 @app.post("/hooks/<hook_id>/<hook_token>")
@@ -43,11 +61,11 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
         obj = hook_object.object
         category = obj.category
 
-        account_username = obj.account['username']
-        target_account_username = obj.target_account['username']
+        account_username = pretty_username(obj.account)
+        target_account_username = pretty_username(obj.target_account)
 
         violated_rules = '\n'.join(
-            f'- {rule["text"]}'
+            f'- {rule.text}'
             for rule in obj.rules
         )
 
