@@ -51,7 +51,7 @@ def pretty_username(account: Account) -> str:
     return f'{account.username}@{account.domain}'
 
 
-@app.post("/hooks/<hook_id>/<hook_token>")
+@app.post("/hooks/{hook_id}/{hook_token}")
 async def hook(hook_id: str, hook_token: str, hook_object: Report):
 
     if hook_object.type != 'report.created':
