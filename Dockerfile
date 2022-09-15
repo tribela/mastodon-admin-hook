@@ -11,4 +11,4 @@ RUN \
 COPY . ./
 
 
-CMD ["uvicorn", "app:app", "--host=0", "--port=5000"]
+CMD ["uvicorn", "app:app", "--proxy-headers", "--host=0", "--port=5000"]
