@@ -37,7 +37,7 @@ class ReportObject(BaseModel):
 
 
 class Report(BaseModel):
-    type: Literal['report.created']
+    event: Literal['report.created']
     created_at: str
     object: ReportObject
 
@@ -54,7 +54,7 @@ def pretty_username(account: Account) -> str:
 @app.post("/hooks/{hook_id}/{hook_token}")
 async def hook(hook_id: str, hook_token: str, hook_object: Report):
 
-    if hook_object.type != 'report.created':
+    if hook_object.event != 'report.created':
         return fastapi.Response(status_code=400)
 
     async with httpx.AsyncClient() as client:
