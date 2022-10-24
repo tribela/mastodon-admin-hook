@@ -67,10 +67,11 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
         account_username = pretty_username(obj.account)
         target_account_username = pretty_username(obj.target_account)
 
+        # Note that empty string causes an error in Discord
         violated_rules = '\n'.join(
             f'- {rule.text}'
             for rule in obj.rules
-        )
+        ) or 'None'
 
         comment = obj.comment
 
