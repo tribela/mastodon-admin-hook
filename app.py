@@ -42,7 +42,10 @@ class Report(BaseModel):
     object: ReportObject
 
 
-avatar_url = httpx.get(f'{INSTANCE_URL}/api/v1/accounts/1').json()['avatar']
+try:
+    avatar_url = httpx.get(f'{INSTANCE_URL}/api/v1/accounts/1').json()['avatar']
+except:
+    avatar_url = None
 
 
 def pretty_username(account: Account) -> str:
