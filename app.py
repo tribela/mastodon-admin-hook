@@ -125,6 +125,8 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
         )
 
         if res.status_code >= 400:
+            print(hook_object)
+            print(body)
             print(res.json())
 
     return fastapi.Response(status_code=201)
