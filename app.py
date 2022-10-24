@@ -1,11 +1,10 @@
-from typing import Literal
+from typing import Dict, List, Literal, Optional
 
 import fastapi
 import httpx
 
+
 from pydantic import BaseModel
-from typing import Dict, List, Optional
-from pprint import pprint
 
 app = fastapi.FastAPI()
 
@@ -42,12 +41,6 @@ class Report(BaseModel):
     object: ReportObject
 
 
-try:
-    avatar_url = httpx.get(f'{INSTANCE_URL}/api/v1/accounts/1').json()['avatar']
-except:
-    avatar_url = None
-
-
 def pretty_username(account: Account) -> str:
     if account.domain is None:
         return account.username
@@ -82,7 +75,6 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
 
         body = {
             "username": "Report reporter",
-            "avatar_url": avatar_url,
             "content": content,
             "embeds": [{
                 "title": "New report",
