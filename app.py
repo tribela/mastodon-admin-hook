@@ -30,7 +30,7 @@ class ReportObject(BaseModel):
     comment: Optional[str]
     created_at: str
     updated_at: str
-    forwarded: bool
+    forwarded: Optional[bool]
     category: str
     rules: List[Rule]
 
@@ -48,16 +48,7 @@ def pretty_username(account: Account) -> str:
 
 
 @app.post("/hooks/{hook_id}/{hook_token}")
-async def hook(hook_id: str, hook_token: str, request: fastapi.Request):
-
-    try:
-        json_data = await request.json()
-        hook_object = Report(__root__=json_data)
-    except:
-        body_data = await request.body()
-        print(body_data)
-        return fastapi.Response(status_code=500)
-
+async def hook(hook_id: str, hook_token: str, hook_object: Report):
     if hook_object.event != 'report.created':
         return fastapi.Response(status_code=400)
 
@@ -111,7 +102,7 @@ async def hook(hook_id: str, hook_token: str, request: fastapi.Request):
                     },
                     {
                         "name": "Forwarded",
-                        "value": obj.forwarded,
+                        "value": "yes" if obj.forwarded else "no",
                         "inline": True,
                     },
                     {
