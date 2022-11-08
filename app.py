@@ -70,7 +70,7 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
         attached_statuses_count = len(obj.statuses)
 
         url = f"{INSTANCE_URL}/admin/reports/{obj.id}"
-        content = f"New report from qdon.space!\n{url}"
+        content = f"@here are new report from qdon.space!\n{url}"
 
         body = {
             "username": "Report reporter",
