@@ -11,7 +11,8 @@ app = fastapi.FastAPI()
 INSTANCE_URL = "https://qdon.space"
 
 
-class Account(BaseModel):
+# For ReportObject
+class AdminAccount(BaseModel):
     username: str
     domain: Optional[str] = None
     ...
@@ -24,8 +25,8 @@ class Rule(BaseModel):
 
 class ReportObject(BaseModel):
     id: int
-    account: Account
-    target_account: Account
+    account: AdminAccount
+    target_account: AdminAccount
     statuses: List[Dict]
     comment: Optional[str]
     created_at: str
@@ -35,41 +36,72 @@ class ReportObject(BaseModel):
     rules: List[Rule]
 
 
-class Report(BaseModel):
-    event: Literal['report.created']
+# For AdminAccountObject
+class Ip(BaseModel):
+    ip: str
+    used_at: str
+
+
+class AdminAccountObject(BaseModel):
+    id: int
+    username: str
+    domain: Optional[str] = None
+    created_at: str
+    email: str
+    ip: Optional[str] = None
+    ips: List[Ip]
+    locale: str
+    invite_request: Optional[str] = None
+    confirmed: bool
+    approved: bool
+    disabled: bool
+    silenced: bool
+    suspended: bool
+    invited_by_account_id: Optional[int] = None
+
+
+class WebHook(BaseModel):
+    event: Literal['report.created'] | Literal['account.approved'] | Literal['account.created']
     created_at: str
     object: ReportObject
 
 
-def pretty_username(account: Account) -> str:
+def pretty_username(account: AdminAccount) -> str:
     if account.domain is None:
         return account.username
     return f'{account.username}@{account.domain}'
 
 
 @app.post("/hooks/{hook_id}/{hook_token}")
-async def hook(hook_id: str, hook_token: str, hook_object: Report):
-    if hook_object.event != 'report.created':
+async def hook(hook_id: str, hook_token: str, hook_object: WebHook):
+
+    if hook_object.event == 'report.created':
+        return await handle_report_created(hook_id, hook_token, hook_object.object)
+    elif hook_object.event == 'account.approved':
+        return await handle_account_approved(hook_id, hook_token, hook_object.object)
+    else:
         return fastapi.Response(status_code=400)
 
-    async with httpx.AsyncClient() as client:
-        obj = hook_object.object
-        category = obj.category
 
-        account_username = pretty_username(obj.account)
-        target_account_username = pretty_username(obj.target_account)
+async def handle_report_created(hook_id: str, hook_token: str, report: ReportObject):
+
+    async with httpx.AsyncClient() as client:
+        category = report.category
+
+        account_username = pretty_username(report.account)
+        target_account_username = pretty_username(report.target_account)
 
         # Note that empty string causes an error in Discord
         violated_rules = '\n'.join(
             f'- {rule.text}'
-            for rule in obj.rules
+            for rule in report.rules
         ) or 'None'
 
-        comment = obj.comment
+        comment = report.comment
 
-        attached_statuses_count = len(obj.statuses)
+        attached_statuses_count = len(report.statuses)
 
-        url = f"{INSTANCE_URL}/admin/reports/{obj.id}"
+        url = f"{INSTANCE_URL}/admin/reports/{report.id}"
         content = f"@here are new report from qdon.space!\n{url}"
 
         body = {
@@ -102,7 +134,7 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
                     },
                     {
                         "name": "Forwarded",
-                        "value": "yes" if obj.forwarded else "no",
+                        "value": "yes" if report.forwarded else "no",
                         "inline": True,
                     },
                     {
@@ -120,8 +152,12 @@ async def hook(hook_id: str, hook_token: str, hook_object: Report):
         )
 
         if res.status_code >= 400:
-            print(hook_object)
+            print(report)
             print(body)
             print(res.json())
 
+    return fastapi.Response(status_code=201)
+
+
+async def handle_account_approved(hook_id: str, hook_token: str, account: AdminAccountObject):
     return fastapi.Response(status_code=201)
