@@ -1,5 +1,7 @@
 from typing import Dict, List, Literal, Optional
 
+import re
+
 import fastapi
 import httpx
 
@@ -42,6 +44,24 @@ class Ip(BaseModel):
     used_at: str
 
 
+class Account(BaseModel):
+    id: int
+    username: str
+    acct: str
+    url: str
+    display_name: str
+    note: str
+    avatar: str
+    avatar_static: str
+    header: str
+    header_static: str
+    locked: str
+    # fields: List[Field]
+    # emojis
+    bot: bool
+    ...
+
+
 class AdminAccountObject(BaseModel):
     id: int
     username: str
@@ -57,7 +77,9 @@ class AdminAccountObject(BaseModel):
     disabled: bool
     silenced: bool
     suspended: bool
+    account: Account
     invited_by_account_id: Optional[int] = None
+    ...
 
 
 class WebHook(BaseModel):
@@ -160,4 +182,72 @@ async def handle_report_created(hook_id: str, hook_token: str, report: ReportObj
 
 
 async def handle_account_approved(hook_id: str, hook_token: str, account: AdminAccountObject):
+    warnings = []
+    HANGUL_RE = re.compile(r'[ㄱ-ㅎㅏ-ㅣ가-힣]')
+
+    async with httpx.AsyncClient() as client:
+        if account.ip:
+            country = (await client.get(f'https://ifconfig.co/country?ip={account.ip}')).text.strip()
+
+            # Check spam DB
+            spam_db_res = await client.get(f'https://api.spamdb.net/v1/ip/{account.ip}')
+        else:
+            country = 'Unknown'
+
+        if account.locale != 'ko' or \
+                HANGUL_RE.search(account.account.display_name) is None or \
+                HANGUL_RE.search(account.account.note) is None:
+            warnings.append('한국인이 아닌 것 같습니다.')
+
+        if country != 'South Korea':
+            warnings.append('가입 IP가 한국이 아닙니다.')
+
+        # If there are warnings, send a message to Discord
+        if warnings:
+            warning_text = '\n'.join(
+                f'- {warn}'
+                for warn in warnings
+            ) or 'None'
+
+            body = {
+                "username": "Account reporter",
+                "content": "New account approved!",
+                "embeds": [{
+                    "title": "New account",
+                    "color": 0xff8b13,
+                    "fields": [
+                        {
+                            "name": "Username",
+                            "value": account.account.username,
+                            "inline": True,
+                        },
+                        {
+                            "name": "Display name",
+                            "value": account.account.display_name,
+                            "inline": True,
+                        },
+                        {
+                            "name": "Bot",
+                            "value": str(account.account.bot),
+                            "inline": True,
+                        },
+                        {
+                            "name": "Warning",
+                            "value": warning_text,
+                            "inline": False,
+                        },
+                    ]
+                }]
+            }
+
+            res = await client.post(
+                f"https://discord.com/api/webhooks/{hook_id}/{hook_token}",
+                json=body,
+            )
+
+            if res.status_code >= 400:
+                print(account)
+                print(body)
+                print(res.json())
+
     return fastapi.Response(status_code=201)
