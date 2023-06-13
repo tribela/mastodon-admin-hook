@@ -126,13 +126,20 @@ async def handle_report_created(hook_id: str, hook_token: str, report: ReportObj
         url = f"{INSTANCE_URL}/admin/reports/{report.id}"
         content = f"@here are new report from qdon.space!\n{url}"
 
+        color = 0xff0000
+
+        # Silent if remote spam
+        if report.category == 'spam' and report.target_account.domain is not None:
+            content = f'@silent {content}'
+            color = 0xffd700  # mustard
+
         body = {
             "username": "Report reporter",
             "content": content,
             "embeds": [{
                 "title": "New report",
                 "description": comment if comment else "No comment",
-                "color": 0xff0000,
+                "color": color,
                 "fields": [
                     {
                         "name": "Reporter",
