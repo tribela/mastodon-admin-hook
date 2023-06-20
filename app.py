@@ -128,10 +128,20 @@ async def handle_report_created(hook_id: str, hook_token: str, report: ReportObj
 
         color = 0xff0000
 
+        to_remote = report.target_account.domain is not None
+        from_remote = report.account.domain is not None
+
         # Silent if remote spam
-        if report.category == 'spam' and report.target_account.domain is not None:
+        if report.category == 'spam' and to_remote:
             content = f'@silent {content}'
             color = 0xffd700  # mustard
+
+        if from_remote:
+            forwarded = 'From remote'
+        elif to_remote:
+            forwarded = 'To remote' if report.forwarded else 'Not forwarded'
+        else:
+            forwarded = 'N/A'
 
         body = {
             "username": "Report reporter",
@@ -163,7 +173,7 @@ async def handle_report_created(hook_id: str, hook_token: str, report: ReportObj
                     },
                     {
                         "name": "Forwarded",
-                        "value": "yes" if report.forwarded else "no",
+                        "value": forwarded,
                         "inline": True,
                     },
                     {
