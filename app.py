@@ -101,7 +101,10 @@ async def hook(hook_id: str, hook_token: str, hook_object: WebHook):
         return await handle_report_created(hook_id, hook_token, hook_object.object)
     elif hook_object.event == 'account.approved':
         return await handle_account_approved(hook_id, hook_token, hook_object.object)
+    elif hook_object.event == 'status.created':
+        return await handle_status_created(hook_id, hook_token, hook_object.object)
     else:
+        print(f'Unprocessible event: {hook_object.event}')
         return fastapi.Response(status_code=400)
 
 
@@ -268,3 +271,8 @@ async def handle_account_approved(hook_id: str, hook_token: str, account: AdminA
                 print(res.json())
 
     return fastapi.Response(status_code=201)
+
+
+async def handle_status_created(hook_id: str, hook_token: str, status):
+    text = status.text
+    print(text)
