@@ -85,7 +85,7 @@ class AdminAccountObject(BaseModel):
 class WebHook(BaseModel):
     event: Literal['report.created'] | Literal['account.approved'] | Literal['account.created']
     created_at: str
-    object: ReportObject
+    object: ReportObject | AdminAccountObject
 
 
 def pretty_username(account: AdminAccount) -> str:
