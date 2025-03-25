@@ -1,14 +1,10 @@
-FROM python:3.10
+FROM python:3.12.3
 
 WORKDIR /app
-ENV PATH="/root/.local/bin:${PATH}"
 
-COPY pyproject.toml poetry.lock ./
-RUN \
-    curl -sSL https://install.python-poetry.org | POETRY_VERSION=1.2.0 python3 && \
-    poetry config virtualenvs.create false && \
-    poetry install --only main --no-root
+COPY --from=ghcr.io/astral-sh/uv:0.6.9 /uv /uvx /bin/
+
 COPY . ./
+RUN uv sync --frozen
 
-
-CMD ["uvicorn", "app:app", "--proxy-headers", "--host=0", "--port=5000"]
+CMD ["uv", "run", "uvicorn", "app:app", "--proxy-headers", "--host=0", "--port=5000"]

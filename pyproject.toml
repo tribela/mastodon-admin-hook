@@ -1,22 +1,29 @@
-[tool.poetry]
+[project]
 name = "mastodon-admin-hook"
 version = "0.1.0"
 description = ""
-authors = ["'Jeong Arm' <'kjwonmail@gmail.com'>"]
+authors = [{ name = "'Jeong Arm'", email = "'kjwonmail@gmail.com'" }]
+requires-python = "~=3.12"
 readme = "README.md"
-packages = [{include = "mastodon_admin_hook"}]
+dependencies = [
+    "fastapi>=0.81.0",
+    "httpx>=0.23.0",
+    "snowflake-id>=0.0.2",
+    "uvicorn>=0.18.3",
+]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-httpx = "^0.23.0"
-snowflake-id = "^0.0.2"
-fastapi = "^0.81.0"
-uvicorn = "^0.18.3"
+[dependency-groups]
+dev = [
+    "flake8>=7.1.2",
+    "flake8-import-order>=0.18.2",
+]
 
-[tool.poetry.group.dev.dependencies]
-flake8 = "^5.0.4"
-flake8-import-order = "^0.18.1"
+[tool.hatch.build.targets.sdist]
+include = ["mastodon_admin_hook"]
+
+[tool.hatch.build.targets.wheel]
+include = ["mastodon_admin_hook"]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
