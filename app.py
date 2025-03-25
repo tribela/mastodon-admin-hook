@@ -83,7 +83,7 @@ class AdminAccountObject(BaseModel):
 
 
 class WebHook(BaseModel):
-    event: Literal['report.created'] | Literal['account.approved'] | Literal['account.created']
+    event: Literal['report.created'] | Literal['account.approved'] | Literal['account.created'] | Literal['status.created']
     created_at: str
     object: ReportObject | AdminAccountObject
 
@@ -206,21 +206,32 @@ async def handle_account_approved(hook_id: str, hook_token: str, account: AdminA
     HANGUL_RE = re.compile(r'[ㄱ-ㅎㅏ-ㅣ가-힣]')
 
     async with httpx.AsyncClient() as client:
-        if account.ip:
-            country = (await client.get(f'https://ifconfig.co/country?ip={account.ip}')).text.strip()
-
-            # Check spam DB
-            spam_db_res = await client.get(f'https://api.spamdb.net/v1/ip/{account.ip}')
-        else:
+        try:
+            res_ip = await client.get(f'https://ifconfig.co/country?ip={account.ip}')
+            res_ip.raise_for_status()
+            country = res_ip.text.strip()
+        except Exception as e:
+            print(f'Error while checking IP for {account.ip}, {e}')
             country = 'Unknown'
 
-        if account.locale != 'ko' or \
-                HANGUL_RE.search(account.account.display_name) is None or \
-                HANGUL_RE.search(account.account.note) is None:
+        if all((
+            account.locale != 'ko',
+            HANGUL_RE.search(account.account.display_name) is None,
+            HANGUL_RE.search(account.account.note) is None,
+        )):
             warnings.append('한국인이 아닌 것 같습니다.')
 
         if country != 'South Korea':
             warnings.append('가입 IP가 한국이 아닙니다.')
+
+        email_domain = account.email.split('@')[-1]
+        try:
+            mx_res = await client.get(f'https://api.usercheck.com/domain/{email_domain}')
+            mx_res.raise_for_status()
+            if mx_res.json()['disposable']:
+                warnings.append('일회용 이메일을 사용하고 있습니다.')
+        except Exception as e:
+            print(f'Error while checking MX record for {email_domain}, {e}')
 
         # If there are warnings, send a message to Discord
         if warnings:
@@ -244,6 +255,11 @@ async def handle_account_approved(hook_id: str, hook_token: str, account: AdminA
                         {
                             "name": "Display name",
                             "value": account.account.display_name,
+                            "inline": True,
+                        },
+                        {
+                            "name": "Email",
+                            "value": account.email,
                             "inline": True,
                         },
                         {
