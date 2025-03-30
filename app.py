@@ -216,10 +216,10 @@ async def handle_account_approved(hook_id: str, hook_token: str, account: AdminA
 
         if all((
             account.locale != 'ko',
-            HANGUL_RE.search(account.account.display_name) is None,
-            HANGUL_RE.search(account.account.note) is None,
+            account.account.display_name and HANGUL_RE.search(account.account.display_name) is None,
+            account.account.note and HANGUL_RE.search(account.account.note) is None,
         )):
-            warnings.append('한국인이 아닌 것 같습니다.')
+            warnings.append('한국어가 없습니다.')
 
         if country != 'South Korea':
             warnings.append('가입 IP가 한국이 아닙니다.')
