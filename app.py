@@ -214,15 +214,17 @@ async def handle_account_approved(hook_id: str, hook_token: str, account: AdminA
             print(f'Error while checking IP for {account.ip}, {e}')
             country = 'Unknown'
 
+        if country != 'South Korea':
+            warnings.append(f'가입 IP가 한국이 아닙니다. ({country})')
+
+        if account.locale != 'ko':
+            warnings.append(f'언어 설정이 한국어가 아닙니다. ({account.locale})')
+
         if all((
-            account.locale != 'ko',
             account.account.display_name and HANGUL_RE.search(account.account.display_name) is None,
             account.account.note and HANGUL_RE.search(account.account.note) is None,
         )):
-            warnings.append('한국어가 없습니다.')
-
-        if country != 'South Korea':
-            warnings.append('가입 IP가 한국이 아닙니다.')
+            warnings.append('프로필에 한글이 없습니다.')
 
         email_domain = account.email.split('@')[-1]
         try:
