@@ -2,6 +2,7 @@ from typing import Dict, List, Literal, Optional
 
 import re
 
+import asyncwhois
 import fastapi
 import httpx
 
@@ -44,6 +45,12 @@ class Ip(BaseModel):
     used_at: str
 
 
+class AccountField(BaseModel):
+    name: str
+    value: str
+    verified_at: Optional[str]
+
+
 class Account(BaseModel):
     id: int
     username: str
@@ -56,7 +63,7 @@ class Account(BaseModel):
     header: str
     header_static: str
     locked: str
-    # fields: List[Field]
+    fields: List[AccountField]
     # emojis
     bot: bool
     ...
@@ -201,32 +208,39 @@ async def handle_report_created(hook_id: str, hook_token: str, report: ReportObj
     return fastapi.Response(status_code=201)
 
 
-async def handle_account_approved(hook_id: str, hook_token: str, account: AdminAccountObject):
+async def handle_account_approved(hook_id: str, hook_token: str, admin_account: AdminAccountObject):
     warnings = []
     HANGUL_RE = re.compile(r'[ㄱ-ㅎㅏ-ㅣ가-힣]')
 
     async with httpx.AsyncClient() as client:
         try:
-            res_ip = await client.get(f'https://ifconfig.co/country?ip={account.ip}')
-            res_ip.raise_for_status()
-            country = res_ip.text.strip()
+            rawstr, whois_dict = await asyncwhois.whois(admin_account.ip)
+            country = whois_dict.get('country')
+            if country is None:
+                if matched := re.search(r'^country:\s*([A-Z]{2})$', rawstr, re.MULTILINE | re.IGNORECASE):
+                    country = matched.group(1)
+                else:
+                    country = 'Unknown'
         except Exception as e:
-            print(f'Error while checking IP for {account.ip}, {e}')
+            print(f'Error while checking IP for {admin_account.ip}, {e}')
             country = 'Unknown'
 
-        if country != 'South Korea':
+        if country != 'KR':
             warnings.append(f'가입 IP가 한국이 아닙니다. ({country})')
 
-        if account.locale != 'ko':
-            warnings.append(f'언어 설정이 한국어가 아닙니다. ({account.locale})')
+        if admin_account.locale != 'ko':
+            warnings.append(f'언어 설정이 한국어가 아닙니다. ({admin_account.locale})')
 
-        if all((
-            account.account.display_name and HANGUL_RE.search(account.account.display_name) is None,
-            account.account.note and HANGUL_RE.search(account.account.note) is None,
-        )):
+        possible_fields = filter(lambda x: x is not None,[
+            admin_account.account.display_name,
+            admin_account.account.note,
+            *[field.name + field.value for field in admin_account.account.fields],
+        ])
+
+        if possible_fields and not any((HANGUL_RE.search(field) for field in possible_fields)):
             warnings.append('프로필에 한글이 없습니다.')
 
-        email_domain = account.email.split('@')[-1]
+        email_domain = admin_account.email.split('@')[-1]
         try:
             mx_res = await client.get(f'https://api.usercheck.com/domain/{email_domain}')
             mx_res.raise_for_status()
@@ -235,58 +249,65 @@ async def handle_account_approved(hook_id: str, hook_token: str, account: AdminA
         except Exception as e:
             print(f'Error while checking MX record for {email_domain}, {e}')
 
-        # If there are warnings, send a message to Discord
-        if warnings:
-            warning_text = '\n'.join(
-                f'- {warn}'
-                for warn in warnings
-            ) or 'None'
+        # If there are no warnings, we don't need to send a message
+        if not warnings:
+            return fastapi.Response(status_code=201)
 
-            body = {
-                "username": "Account reporter",
-                "content": "New account approved!",
-                "embeds": [{
-                    "title": "New account",
-                    "color": 0xff8b13,
-                    "fields": [
-                        {
-                            "name": "Username",
-                            "value": account.account.username,
-                            "inline": True,
-                        },
-                        {
-                            "name": "Display name",
-                            "value": account.account.display_name,
-                            "inline": True,
-                        },
-                        {
-                            "name": "Email",
-                            "value": account.email,
-                            "inline": True,
-                        },
-                        {
-                            "name": "Bot",
-                            "value": str(account.account.bot),
-                            "inline": True,
-                        },
-                        {
-                            "name": "Warning",
-                            "value": warning_text,
-                            "inline": False,
-                        },
-                    ]
-                }]
-            }
+        warning_text = '\n'.join(
+            f'- {warn}'
+            for warn in warnings
+        ) or 'None'
 
-            res = await client.post(
-                f"https://discord.com/api/webhooks/{hook_id}/{hook_token}",
-                json=body,
-            )
+        body = {
+            "username": "Account reporter",
+            "content": "New account approved!\n{INSTANCE_URL}/admin/accounts/{account.id}",
+            "embeds": [{
+                "title": "New account",
+                "color": 0xff8b13,
+                "fields": [
+                    {
+                        "name": "Username",
+                        "value": admin_account.account.username,
+                        "inline": True,
+                    },
+                    {
+                        "name": "Display name",
+                        "value": admin_account.account.display_name,
+                        "inline": True,
+                    },
+                    {
+                        "name": "Email",
+                        "value": admin_account.email,
+                        "inline": True,
+                    },
+                    {
+                        "name": "IP",
+                        "value": admin_account.ip,
+                        "inline": True,
+                    },
+                    {
+                        "name": "Bot",
+                        "value": str(admin_account.account.bot),
+                        "inline": True,
+                    },
+                    {
+                        "name": "Warning",
+                        "value": warning_text,
+                        "inline": False,
+                    },
+                ]
+            }]
+        }
 
-            if res.status_code >= 400:
-                print(account)
-                print(body)
-                print(res.json())
+        res = await client.post(
+            f"https://discord.com/api/webhooks/{hook_id}/{hook_token}",
+            json=body,
+        )
+
+        if res.status_code >= 400:
+            print(admin_account)
+            print(body)
+            print(res.json())
 
     return fastapi.Response(status_code=201)
 

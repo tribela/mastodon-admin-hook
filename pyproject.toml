@@ -6,6 +6,7 @@ authors = [{ name = "'Jeong Arm'", email = "'kjwonmail@gmail.com'" }]
 requires-python = "~=3.12"
 readme = "README.md"
 dependencies = [
+    "asyncwhois>=1.1.10",
     "fastapi>=0.81.0",
     "httpx>=0.23.0",
     "snowflake-id>=0.0.2",
