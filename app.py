@@ -231,11 +231,11 @@ async def handle_account_approved(hook_id: str, hook_token: str, admin_account: 
         if admin_account.locale != 'ko':
             warnings.append(f'언어 설정이 한국어가 아닙니다. ({admin_account.locale})')
 
-        possible_fields = filter(lambda x: x is not None,[
+        possible_fields = list(filter(lambda x: x is not None, [
             admin_account.account.display_name,
             admin_account.account.note,
             *[field.name + field.value for field in admin_account.account.fields],
-        ])
+        ]))
 
         if possible_fields and not any((HANGUL_RE.search(field) for field in possible_fields)):
             warnings.append('프로필에 한글이 없습니다.')
