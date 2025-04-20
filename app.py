@@ -214,7 +214,7 @@ async def handle_account_approved(hook_id: str, hook_token: str, admin_account: 
 
     async with httpx.AsyncClient() as client:
         try:
-            rawstr, whois_dict = await asyncwhois.whois(admin_account.ip)
+            rawstr, whois_dict = await asyncwhois.aio_whois(admin_account.ip)
             country = whois_dict.get('country')
             if country is None:
                 if matched := re.search(r'^country:\s*([A-Z]{2})$', rawstr, re.MULTILINE | re.IGNORECASE):
@@ -260,7 +260,7 @@ async def handle_account_approved(hook_id: str, hook_token: str, admin_account: 
 
         body = {
             "username": "Account reporter",
-            "content": "New account approved!\n{INSTANCE_URL}/admin/accounts/{account.id}",
+            "content": f"New account approved!\n{INSTANCE_URL}/admin/accounts/{admin_account.id}",
             "embeds": [{
                 "title": "New account",
                 "color": 0xff8b13,
