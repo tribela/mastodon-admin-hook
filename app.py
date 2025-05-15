@@ -231,7 +231,7 @@ async def handle_account_approved(hook_id: str, hook_token: str, admin_account: 
         if admin_account.locale != 'ko':
             warnings.append(f'언어 설정이 한국어가 아닙니다. ({admin_account.locale})')
 
-        possible_fields = list(filter(lambda x: x is not None, [
+        possible_fields = list(filter(bool, [
             admin_account.account.display_name,
             admin_account.account.note,
             *[field.name + field.value for field in admin_account.account.fields],
