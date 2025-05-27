@@ -101,6 +101,23 @@ def pretty_username(account: AdminAccount) -> str:
     return f'{account.username}@{account.domain}'
 
 
+def redact_email(email: str) -> str:
+    """
+    Redact the email address by replacing middle part of name with '*'s
+    """
+    try:
+        name, domain = email.split('@')
+        if len(name) <= 2:
+            redacted_name = name[0] + '*' * (len(name) - 1)
+        else:
+            redacted_name = name[0] + '*' * (len(name) - 2) + name[-1]
+
+        return f'{redacted_name}@{domain}'
+    except (ValueError, AttributeError):
+        # Invalid email format
+        return email
+
+
 @app.post("/hooks/{hook_id}/{hook_token}")
 async def hook(hook_id: str, hook_token: str, hook_object: WebHook):
 
@@ -277,7 +294,7 @@ async def handle_account_approved(hook_id: str, hook_token: str, admin_account: 
                     },
                     {
                         "name": "Email",
-                        "value": admin_account.email,
+                        "value": redact_email(admin_account.email),
                         "inline": True,
                     },
                     {
