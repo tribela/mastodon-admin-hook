@@ -104,13 +104,14 @@ def pretty_username(account: AdminAccount) -> str:
 def redact_email(email: str) -> str:
     """
     Redact the email address by replacing middle part of name with '*'s
+    It adds backslash to escape discord's markdown formatting
     """
     try:
         name, domain = email.split('@')
         if len(name) <= 2:
-            redacted_name = name[0] + '*' * (len(name) - 1)
+            redacted_name = name[0] + '\\*' * (len(name) - 1)
         else:
-            redacted_name = name[0] + '*' * (len(name) - 2) + name[-1]
+            redacted_name = name[0] + '\\*' * (len(name) - 2) + name[-1]
 
         return f'{redacted_name}@{domain}'
     except (ValueError, AttributeError):
