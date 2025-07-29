@@ -231,11 +231,11 @@ async def handle_account_approved(hook_id: str, hook_token: str, admin_account: 
     HANGUL_RE = re.compile(r'[ㄱ-ㅎㅏ-ㅣ가-힣]')
 
     async with httpx.AsyncClient() as client:
+        whois_raw, whois_dict = await asyncwhois.aio_whois(admin_account.ip)
         try:
-            rawstr, whois_dict = await asyncwhois.aio_whois(admin_account.ip)
             country = whois_dict.get('country')
             if country is None:
-                if matched := re.search(r'^country:\s*([A-Z]{2})$', rawstr, re.MULTILINE | re.IGNORECASE):
+                if matched := re.search(r'^country:\s*([A-Z]{2})$', whois_raw, re.MULTILINE | re.IGNORECASE):
                     country = matched.group(1)
                 else:
                     country = 'Unknown'
@@ -243,8 +243,19 @@ async def handle_account_approved(hook_id: str, hook_token: str, admin_account: 
             print(f'Error while checking IP for {admin_account.ip}, {e}')
             country = 'Unknown'
 
+        try:
+            netname = whois_dict.get('netname')
+            if netname is None:
+                if matched := re.search(r'^netname:\s*(.+)$', whois_raw, re.MULTILINE | re.IGNORECASE):
+                    netname = matched.group(1)
+                else:
+                    netname = 'Unknown'
+        except Exception as e:
+            print(f'Error while checking netname for {admin_account.ip}, {e}')
+            netname = 'Unknown'
+
         if country != 'KR':
-            warnings.append(f'가입 IP가 한국이 아닙니다. ({country})')
+            warnings.append(f'가입 IP가 한국이 아닙니다. ({country}, {netname})')
 
         if admin_account.locale != 'ko':
             warnings.append(f'언어 설정이 한국어가 아닙니다. ({admin_account.locale})')
